@@ -16,6 +16,7 @@ logging.basicConfig(
 
 print("✅ NSE AI BOT STARTED")
 
+
 # ===========================
 # TELEGRAM FUNCTION
 # ===========================
@@ -32,12 +33,17 @@ def send_telegram(message):
         requests.post(url, data=data, timeout=20)
         print("✅ Telegram Message Sent")
     except Exception as e:
-        print("Telegram Error:", e)
+        print(e)
 
 
 # ===========================
-# TEST
+# MAIN LOOP
 # ===========================
 
 if __name__ == "__main__":
+
     send_telegram("🚀 NSE AI BOT Started Successfully")
+
+    while True:
+        print("Bot Running...")
+        time.sleep(60)
