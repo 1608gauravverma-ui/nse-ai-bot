@@ -1,1 +1,43 @@
-print("NSE AI BOT STARTED")
+import requests
+import time
+import logging
+
+# ===========================
+# CONFIGURATION
+# ===========================
+
+BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+CHAT_ID = "YOUR_CHAT_ID"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+print("✅ NSE AI BOT STARTED")
+
+# ===========================
+# TELEGRAM FUNCTION
+# ===========================
+
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
+    data = {
+        "chat_id": CHAT_ID,
+        "text": message
+    }
+
+    try:
+        requests.post(url, data=data, timeout=20)
+        print("✅ Telegram Message Sent")
+    except Exception as e:
+        print("Telegram Error:", e)
+
+
+# ===========================
+# TEST
+# ===========================
+
+if __name__ == "__main__":
+    send_telegram("🚀 NSE AI BOT Started Successfully")
