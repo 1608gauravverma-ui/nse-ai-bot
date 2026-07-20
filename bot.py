@@ -1,3 +1,4 @@
+import os
 import requests
 import time
 import logging
@@ -6,8 +7,8 @@ import logging
 # CONFIGURATION
 # ===========================
 
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 logging.basicConfig(
     level=logging.INFO,
