@@ -2130,5 +2130,12 @@ def classify_news(score):
 
 if __name__ == "__main__":
     print("MAIN CALLED")
+
     Thread(target=run_http, daemon=True).start()
+
+    try:
+        send_telegram_message("✅ Alpha News 5 Started Successfully!")
+    except Exception as e:
+        print("Startup Telegram Error:", e)
+
     main()
