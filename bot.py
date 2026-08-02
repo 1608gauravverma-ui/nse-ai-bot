@@ -24,6 +24,17 @@ from datetime import datetime, timedelta
 from urllib.parse import urljoin
 # Gemini SDK not required
 genai = None
+from threading import Thread
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Alpha News 5 Running"
+
+def run_http():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
 # Optional Libraries
 try:
@@ -2119,4 +2130,5 @@ def classify_news(score):
 
 if __name__ == "__main__":
     print("MAIN CALLED")
+    Thread(target=run_http, daemon=True).start()
     main()
