@@ -54,9 +54,10 @@ def run_http():
 
 VERSION = "6.0.0"
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-CHAT_ID = os.environ.get("CHAT_ID", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+BOT_TOKEN = os.environ.get("8638278037:AAGr9MKqQ045Hqa-f-godVUrQ7T9dnHt4a8", "")
+CHAT_ID = os.environ.get("6315662736", "")
+
+GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6In2aXZmtWPH7oe7uy7WB3RRp3KXdoFBdnwqv_HcWD_wA", "")
 
 ENABLE_AI = bool(GEMINI_API_KEY)
 
@@ -2307,26 +2308,7 @@ def main():
     main_loop()
 
 
-if __name__ == "__main__":
 
-    Thread(
-        target=run_http,
-        daemon=True
-    ).start()
-
-    try:
-
-        main()
-
-    except KeyboardInterrupt:
-
-        log("[SYSTEM] Stopped By User")
-
-    except Exception as e:
-
-        log(f"[FATAL] {e}", "ERROR")
-
-        traceback.print_exc()
         
 # ============================================================
 # BLOCK 7A
@@ -2461,3 +2443,23 @@ def analyze_result_quality(pdf_text):
             report["score"] -= 1
 
     return report
+    if __name__ == "__main__":
+
+    Thread(
+        target=run_http,
+        daemon=True
+    ).start()
+
+    try:
+
+        main()
+
+    except KeyboardInterrupt:
+
+        log("[SYSTEM] Stopped By User")
+
+    except Exception as e:
+
+        log(f"[FATAL] {e}", "ERROR")
+
+        traceback.print_exc()
