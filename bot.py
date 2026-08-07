@@ -2411,39 +2411,30 @@ NEGATIVE_RESULT_WORDS = [
 def analyze_result_quality(pdf_text):
 
     report = {
-
         "positive": [],
-
         "negative": [],
-
         "score": 0
-
     }
 
     if not pdf_text:
-
         return report
 
     text = pdf_text.lower()
 
     for word in POSITIVE_RESULT_WORDS:
-
         if word in text:
-
             report["positive"].append(word)
-
             report["score"] += 1
 
     for word in NEGATIVE_RESULT_WORDS:
-
         if word in text:
-
             report["negative"].append(word)
-
             report["score"] -= 1
 
     return report
-    if __name__ == "__main__":
+
+
+if __name__ == "__main__":
 
     Thread(
         target=run_http,
@@ -2451,15 +2442,11 @@ def analyze_result_quality(pdf_text):
     ).start()
 
     try:
-
         main()
 
     except KeyboardInterrupt:
-
         log("[SYSTEM] Stopped By User")
 
     except Exception as e:
-
         log(f"[FATAL] {e}", "ERROR")
-
         traceback.print_exc()
