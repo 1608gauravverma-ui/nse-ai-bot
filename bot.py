@@ -54,14 +54,38 @@ def run_http():
 
 VERSION = "6.0.0"
 
-BOT_TOKEN = os.environ.get("8638278037:AAGr9MKqQ045Hqa-f-godVUrQ7T9dnHt4a8", "")
-CHAT_ID = os.environ.get("6315662736", "")
+# ------------------------------------------------------------
+# SECRET KEYS — READ FROM ENVIRONMENT
+# ------------------------------------------------------------
 
-GEMINI_API_KEY = os.environ.get("AQ.Ab8RN6In2aXZmtWPH7oe7uy7WB3RRp3KXdoFBdnwqv_HcWD_wA", "")
+BOT_TOKEN = os.environ.get(
+    "BOT_TOKEN",
+    ""
+)
 
-ENABLE_AI = bool(GEMINI_API_KEY)
+CHAT_ID = os.environ.get(
+    "CHAT_ID",
+    ""
+)
+
+GEMINI_API_KEY = os.environ.get(
+    "GEMINI_API_KEY",
+    ""
+)
+
+# ------------------------------------------------------------
+# AI
+# ------------------------------------------------------------
+
+ENABLE_AI = bool(
+    GEMINI_API_KEY
+)
 
 AI_MODEL = "gemini-2.5-flash"
+
+# ------------------------------------------------------------
+# ENGINE
+# ------------------------------------------------------------
 
 CHECK_INTERVAL = 30
 
@@ -80,6 +104,10 @@ ENABLE_PREOPEN = True
 ENABLE_FNO = True
 
 ENABLE_XBRL = True
+
+# ------------------------------------------------------------
+# USER AGENT
+# ------------------------------------------------------------
 
 USER_AGENT = (
     "Mozilla/5.0 "
