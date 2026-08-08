@@ -1456,63 +1456,247 @@ def result_score(report, sentiment):
 
 def analyze_result_news(news):
 
+    # --------------------------------------------------------
+    # RESULT PDF LOAD
+    # --------------------------------------------------------
+
     pdf_text = load_result_pdf(news)
 
+    # --------------------------------------------------------
+    # PDF NOT AVAILABLE
+    # Do NOT kill the news pipeline.
+    # Continue with the normal announcement analysis.
+    # --------------------------------------------------------
+
     if not pdf_text:
+
+        news["financial_metrics"] = {
+            "revenue": "N/A",
+            "pat": "N/A",
+            "ebitda": "N/A",
+            "eps": "N/A"
+        }
+
+        news["result_quality"] = {
+            "positive": [],
+            "negative": [],
+            "score": 0
+        }
+
+        news["result_score"] = None
+
+        if "reasons" not in news:
+            news["reasons"] = []
+
+        news["reasons"].append(
+            "Result PDF unavailable - announcement analysis used"
+        )
+
         return news
 
-    report = analyze_result_pdf(pdf_text)
+    # --------------------------------------------------------
+    # RESULT PDF ANALYSIS
+    # --------------------------------------------------------
 
-    # Auto Extract Financial Metrics
-    news["financial_metrics"] = extract_financial_metrics(pdf_text)
+    try:
 
-    # Auto Result Quality
-    news["result_quality"] = analyze_result_quality(pdf_text)
+        report = analyze_result_pdf(pdf_text)
 
-    sentiment = detect_growth_sentiment(pdf_text)
+    except Exception as e:
 
-    result_score_value, result_reasons = result_score(
-        report,
-        sentiment
+        log(
+            f"[RESULT] PDF Analysis Error : {e}",
+            "ERROR"
+        )
+
+        report = {}
+
+    # --------------------------------------------------------
+    # FINANCIAL METRICS
+    # --------------------------------------------------------
+
+    try:
+
+        news["financial_metrics"] = (
+            extract_financial_metrics(pdf_text)
+        )
+
+    except Exception as e:
+
+        log(
+            f"[RESULT] Metrics Error : {e}",
+            "ERROR"
+        )
+
+        news["financial_metrics"] = {
+            "revenue": "N/A",
+            "pat": "N/A",
+            "ebitda": "N/A",
+            "eps": "N/A"
+        }
+
+    # --------------------------------------------------------
+    # RESULT QUALITY
+    # --------------------------------------------------------
+
+    try:
+
+        news["result_quality"] = (
+            analyze_result_quality(pdf_text)
+        )
+
+    except Exception as e:
+
+        log(
+            f"[RESULT] Quality Error : {e}",
+            "ERROR"
+        )
+
+        news["result_quality"] = {
+            "positive": [],
+            "negative": [],
+            "score": 0
+        }
+
+    # --------------------------------------------------------
+    # GROWTH SENTIMENT
+    # --------------------------------------------------------
+
+    try:
+
+        sentiment = detect_growth_sentiment(
+            pdf_text
+        )
+
+    except Exception as e:
+
+        log(
+            f"[RESULT] Sentiment Error : {e}",
+            "ERROR"
+        )
+
+        sentiment = "Neutral"
+
+    # --------------------------------------------------------
+    # RESULT SCORE
+    # --------------------------------------------------------
+
+    try:
+
+        result_score_value, result_reasons = (
+            result_score(
+                report,
+                sentiment
+            )
+        )
+
+    except Exception as e:
+
+        log(
+            f"[RESULT] Score Error : {e}",
+            "ERROR"
+        )
+
+        result_score_value = news.get(
+            "impact_score",
+            5
+        )
+
+        result_reasons = []
+
+    # --------------------------------------------------------
+    # SAFETY LIMIT
+    # --------------------------------------------------------
+
+    try:
+
+        result_score_value = int(
+            float(result_score_value)
+        )
+
+    except Exception:
+
+        result_score_value = 5
+
+    result_score_value = max(
+        1,
+        min(
+            result_score_value,
+            10
+        )
     )
+
+    # --------------------------------------------------------
+    # SAVE RESULT DATA
+    # --------------------------------------------------------
 
     news["result_score"] = result_score_value
 
     news["result_report"] = report
 
     if "reasons" not in news:
+
         news["reasons"] = []
 
-    news["reasons"].extend(result_reasons)
+    if result_reasons:
 
-    # AI handled later in finalize_analysis()
+        news["reasons"].extend(
+            result_reasons
+        )
+
+    # --------------------------------------------------------
+    # RESULT DECISION
+    #
+    # AI will get the final opportunity to refine this
+    # inside finalize_analysis().
+    # --------------------------------------------------------
 
     if result_score_value >= 8:
 
         news["impact_score"] = max(
-            news.get("impact_score", 0),
+            news.get(
+                "impact_score",
+                5
+            ),
             result_score_value
         )
 
         news["sentiment"] = "Bullish"
+
         news["action"] = "BUY"
+
         news["verdict"] = "RESULT POSITIVE"
+
         news["confidence"] = 85
 
     elif result_score_value <= 3:
 
-        news["impact_score"] = result_score_value
+        news["impact_score"] = max(
+            1,
+            result_score_value
+        )
+
         news["sentiment"] = "Bearish"
+
         news["action"] = "SELL"
+
         news["verdict"] = "RESULT NEGATIVE"
+
         news["confidence"] = 85
 
     else:
 
-        news["impact_score"] = result_score_value
+        news["impact_score"] = max(
+            5,
+            result_score_value
+        )
+
         news["sentiment"] = "Neutral"
+
         news["action"] = "WATCH"
+
         news["verdict"] = "MIXED RESULT"
+
         news["confidence"] = 70
 
     return news
@@ -1838,7 +2022,9 @@ def detect_positive_event(news):
 
 def analyze_news(news):
 
-    # Default Values
+    # --------------------------------------------------------
+    # DEFAULT VALUES
+    # --------------------------------------------------------
 
     news.setdefault("impact_score", 5)
     news.setdefault("category", "General")
@@ -1846,66 +2032,93 @@ def analyze_news(news):
     news.setdefault("urgency", "Medium")
     news.setdefault("action", "WATCH")
     news.setdefault("confidence", 50)
+    news.setdefault("verdict", "👀 WATCH")
     news.setdefault("reasons", [])
 
-    # -------------------------------
-    # Result Engine
-    # -------------------------------
+    # --------------------------------------------------------
+    # RESULT ENGINE
+    # --------------------------------------------------------
 
     if is_result_news(news):
+
         news = analyze_result_news(news)
 
-    # -------------------------------
-    # Material Events
-    # -------------------------------
+    # --------------------------------------------------------
+    # MATERIAL EVENTS
+    # --------------------------------------------------------
 
     if detect_material_event(news):
+
         news = refine_material_event(news)
 
-    # -------------------------------
-    # Business Events
-    # -------------------------------
+    # --------------------------------------------------------
+    # BUSINESS EVENTS
+    # --------------------------------------------------------
 
     detect_positive_event(news)
 
-    # IMPORTANT:
-    # AI yahan call NAHI hogi.
-    # AI sirf finalize_analysis() me chalegi.
+    # --------------------------------------------------------
+    # SAFETY LIMITS
+    # --------------------------------------------------------
 
-    news["impact_score"] = max(1, min(news["impact_score"], 10))
-    news["confidence"] = max(40, min(news["confidence"], 99))
+    news["impact_score"] = max(
+        1,
+        min(
+            news.get("impact_score", 5),
+            10
+        )
+    )
 
-    return news
+    news["confidence"] = max(
+        40,
+        min(
+            news.get("confidence", 50),
+            99
+        )
+    )
 
-    # --------------------------------
-    # Final Verdict
-    # --------------------------------
+    # --------------------------------------------------------
+    # FINAL VERDICT
+    # --------------------------------------------------------
 
-    if news["impact_score"] >= 9:
+    score = news["impact_score"]
 
-        if news["sentiment"].lower().startswith("bear"):
+    sentiment = str(
+        news.get("sentiment", "Neutral")
+    ).lower()
 
+    if score >= 9:
+
+        if sentiment.startswith("bear"):
+
+            news["action"] = "SELL"
             news["verdict"] = "🔻 STRONG SELL"
 
         else:
 
+            news["action"] = "BUY"
             news["verdict"] = "🚀 STRONG BUY"
 
-    elif news["impact_score"] >= 7:
+    elif score >= 7:
 
-        if news["sentiment"].lower().startswith("bear"):
+        if sentiment.startswith("bear"):
 
+            news["action"] = "SELL"
             news["verdict"] = "📉 SELL"
 
         else:
 
+            news["action"] = "BUY"
             news["verdict"] = "📈 BUY"
 
     else:
 
+        news["action"] = "WATCH"
         news["verdict"] = "👀 WATCH"
 
     return news
+
+
 # ============================================================
 # BLOCK 6B
 # AI BUDGET MANAGER + FINAL DECISION ENGINE
@@ -1913,9 +2126,9 @@ def analyze_news(news):
 
 def finalize_analysis(news):
 
-    # ---------------------------------------
+    # --------------------------------------------------------
     # AI CALL ONLY ONCE
-    # ---------------------------------------
+    # --------------------------------------------------------
 
     ai_used = False
 
@@ -1925,66 +2138,78 @@ def finalize_analysis(news):
 
         if ai_text:
 
-            news = apply_ai_result(news, ai_text)
+            news = apply_ai_result(
+                news,
+                ai_text
+            )
 
             ai_used = True
 
-    # ---------------------------------------
+    # --------------------------------------------------------
     # FALLBACK ENGINE
-    # ---------------------------------------
+    # --------------------------------------------------------
 
     if not ai_used:
 
-        score = news.get("impact_score", 5)
+        score = news.get(
+            "impact_score",
+            5
+        )
 
-        sentiment = news.get("sentiment", "Neutral")
+        sentiment = str(
+            news.get(
+                "sentiment",
+                "Neutral"
+            )
+        ).lower()
 
         if score >= 9:
 
-            if sentiment.lower().startswith("bear"):
+            if sentiment.startswith("bear"):
 
                 news["action"] = "SELL"
-
                 news["verdict"] = "🔻 STRONG SELL"
 
             else:
 
                 news["action"] = "BUY"
-
                 news["verdict"] = "🚀 STRONG BUY"
 
         elif score >= 7:
 
-            if sentiment.lower().startswith("bear"):
+            if sentiment.startswith("bear"):
 
                 news["action"] = "SELL"
-
                 news["verdict"] = "📉 SELL"
 
             else:
 
                 news["action"] = "BUY"
-
                 news["verdict"] = "📈 BUY"
 
         else:
 
             news["action"] = "WATCH"
-
             news["verdict"] = "👀 WATCH"
 
-    # ---------------------------------------
+    # --------------------------------------------------------
     # LIMITS
-    # ---------------------------------------
+    # --------------------------------------------------------
 
     news["impact_score"] = max(
         1,
-        min(news.get("impact_score", 5), 10)
+        min(
+            news.get("impact_score", 5),
+            10
+        )
     )
 
     news["confidence"] = max(
         40,
-        min(news.get("confidence", 50), 99)
+        min(
+            news.get("confidence", 50),
+            99
+        )
     )
 
     return news
@@ -2001,7 +2226,392 @@ def complete_analysis(news):
     news = finalize_analysis(news)
 
     return news
-  # ============================================================
+    # ============================================================
+# BLOCK 6C
+# RESULT FINANCIAL METRICS + QUALITY ENGINE
+# ============================================================
+
+RESULT_PATTERNS = {
+
+    "revenue": [
+
+        r"Revenue\s+from\s+Operations[:\s₹]*([\d,\.]+)",
+
+        r"Revenue\s+from\s+Operations\s*\n?[:\s₹]*([\d,\.]+)",
+
+        r"Total\s+Income[:\s₹]*([\d,\.]+)"
+
+    ],
+
+    "pat": [
+
+        r"Net\s+Profit[:\s₹]*([\d,\.\-\(\)]+)",
+
+        r"Profit\s+After\s+Tax[:\s₹]*([\d,\.\-\(\)]+)",
+
+        r"PAT[:\s₹]*([\d,\.\-\(\)]+)"
+
+    ],
+
+    "ebitda": [
+
+        r"EBITDA[:\s₹]*([\d,\.\-\(\)]+)"
+
+    ],
+
+    "eps": [
+
+        r"EPS[:\s₹]*([\d,\.\-]+)",
+
+        r"Earnings\s+Per\s+Share[:\s₹]*([\d,\.\-]+)"
+
+    ]
+
+}
+
+
+def extract_financial_metrics(pdf_text):
+
+    result = {
+
+        "revenue": "N/A",
+
+        "pat": "N/A",
+
+        "ebitda": "N/A",
+
+        "eps": "N/A"
+
+    }
+
+    if not pdf_text:
+
+        return result
+
+    for key, patterns in RESULT_PATTERNS.items():
+
+        for pattern in patterns:
+
+            try:
+
+                match = re.search(
+                    pattern,
+                    pdf_text,
+                    flags=re.I
+                )
+
+                if match:
+
+                    result[key] = (
+                        match.group(1)
+                        .strip()
+                    )
+
+                    break
+
+            except Exception as e:
+
+                log(
+                    f"[METRICS] {e}",
+                    "WARNING"
+                )
+
+    return result
+
+
+# ============================================================
+# RESULT QUALITY
+# ============================================================
+
+POSITIVE_RESULT_WORDS = [
+
+    "record revenue",
+
+    "record profit",
+
+    "highest ever",
+
+    "margin expansion",
+
+    "strong growth",
+
+    "order book",
+
+    "guidance raised",
+
+    "debt reduced",
+
+    "cash increased",
+
+    "capacity expansion",
+
+    "robust demand",
+
+    "improved margin",
+
+    "strong cash flow"
+
+]
+
+
+NEGATIVE_RESULT_WORDS = [
+
+    "net loss",
+
+    "loss",
+
+    "margin pressure",
+
+    "guidance cut",
+
+    "weak demand",
+
+    "decline",
+
+    "lower revenue",
+
+    "profit declined",
+
+    "debt increased",
+
+    "impairment",
+
+    "shutdown",
+
+    "exceptional loss",
+
+    "cash burn"
+
+]
+
+
+def analyze_result_quality(pdf_text):
+
+    report = {
+
+        "positive": [],
+
+        "negative": [],
+
+        "score": 0
+
+    }
+
+    if not pdf_text:
+
+        return report
+
+    text = pdf_text.lower()
+
+    for word in POSITIVE_RESULT_WORDS:
+
+        if word in text:
+
+            report["positive"].append(word)
+
+            report["score"] += 1
+
+    for word in NEGATIVE_RESULT_WORDS:
+
+        if word in text:
+
+            report["negative"].append(word)
+
+            report["score"] -= 1
+
+    # Keep quality score within a safe range
+
+    report["score"] = max(
+        -10,
+        min(
+            report["score"],
+            10
+        )
+    )
+
+    return report
+    # ============================================================
+# BLOCK 6D
+# NSE F&O UNIVERSE ENGINE
+# ============================================================
+
+FNO_STOCKS = set()
+
+FNO_READY = False
+
+FNO_LAST_REFRESH = None
+
+FNO_COUNT = 0
+
+
+FNO_URL = (
+    NSE_HOME
+    + "/api/equity-stockIndices"
+    + "?index=SECURITIES%20IN%20F%26O"
+)
+
+
+def normalize_fno_symbol(symbol):
+
+    if not symbol:
+        return ""
+
+    symbol = str(symbol).strip().upper()
+
+    # Remove common NSE suffixes if present
+
+    for suffix in (
+        "-EQ",
+        "_EQ",
+        ".NS"
+    ):
+
+        if symbol.endswith(suffix):
+
+            symbol = symbol[:-len(suffix)]
+
+    return symbol.strip()
+
+
+def load_fno_stocks():
+
+    global FNO_STOCKS
+    global FNO_READY
+    global FNO_LAST_REFRESH
+    global FNO_COUNT
+
+    FNO_READY = False
+
+    FNO_STOCKS = set()
+
+    FNO_COUNT = 0
+
+    log("[FNO] Loading NSE F&O universe...")
+
+    try:
+
+        data = download_json(FNO_URL)
+
+        if not data:
+
+            log(
+                "[FNO] NSE returned empty response",
+                "ERROR"
+            )
+
+            return False
+
+        records = data.get("data", [])
+
+        if not records:
+
+            log(
+                "[FNO] No F&O securities received",
+                "ERROR"
+            )
+
+            return False
+
+        stocks = set()
+
+        for item in records:
+
+            if not isinstance(item, dict):
+                continue
+
+            symbol = normalize_fno_symbol(
+                item.get("symbol", "")
+            )
+
+            if symbol:
+
+                stocks.add(symbol)
+
+        if not stocks:
+
+            log(
+                "[FNO] F&O symbol extraction failed",
+                "ERROR"
+            )
+
+            return False
+
+        FNO_STOCKS = stocks
+
+        FNO_COUNT = len(FNO_STOCKS)
+
+        FNO_LAST_REFRESH = current_time()
+
+        FNO_READY = True
+
+        log(
+            f"[FNO] Loaded {FNO_COUNT} securities"
+        )
+
+        return True
+
+    except Exception as e:
+
+        FNO_READY = False
+
+        FNO_STOCKS = set()
+
+        FNO_COUNT = 0
+
+        log(
+            f"[FNO] Load Error : {e}",
+            "ERROR"
+        )
+
+        return False
+
+
+def is_fno_stock(symbol):
+
+    normalized = normalize_fno_symbol(symbol)
+
+    if not normalized:
+
+        return False
+
+    if not FNO_READY:
+
+        return False
+
+    return normalized in FNO_STOCKS
+
+
+def refresh_fno_stocks():
+
+    if not ENABLE_FNO:
+
+        log("[FNO] Feature Disabled")
+
+        return False
+
+    log("[FNO] Refreshing F&O universe...")
+
+    return load_fno_stocks()
+
+
+def get_fno_status():
+
+    return {
+
+        "enabled": ENABLE_FNO,
+
+        "ready": FNO_READY,
+
+        "count": FNO_COUNT,
+
+        "last_refresh": (
+            FNO_LAST_REFRESH
+            if FNO_LAST_REFRESH
+            else "N/A"
+        )
+
+    }
+    # ============================================================
 # BLOCK 7A
 # TELEGRAM MESSAGE FORMATTER
 # ============================================================
@@ -2010,103 +2620,267 @@ def format_news_message(news):
 
     message = ""
 
-    score = news.get("impact_score", 5)
+    score = news.get(
+        "impact_score",
+        5
+    )
+
+    # --------------------------------------------------------
+    # IMPACT LABEL
+    # --------------------------------------------------------
 
     if score >= 9:
+
         impact = "🚨 HIGH IMPACT"
+
     elif score >= 7:
+
         impact = "⚡ MEDIUM IMPACT"
+
     else:
+
         impact = "ℹ️ LOW IMPACT"
 
-    message += "📢 <b>ALPHA NEWS 6</b>\n"
-    message += impact + "\n\n"
+    # --------------------------------------------------------
+    # HEADER
+    # --------------------------------------------------------
 
-    message += f"🏢 <b>Company :</b> {news.get('company','N/A')}\n"
-    message += f"📈 <b>Symbol :</b> {news.get('symbol','N/A')}\n\n"
+    message += (
+        "📢 <b>ALPHA NEWS 6</b>\n"
+    )
 
-    message += f"📰 <b>{news.get('title','')}</b>\n\n"
+    message += (
+        impact
+        + "\n\n"
+    )
 
-    message += "━━━━━━━━━━━━━━━━━━\n"
+    # --------------------------------------------------------
+    # COMPANY
+    # --------------------------------------------------------
 
-    message += f"📂 Category : {news.get('category','General')}\n"
-    message += f"📊 Impact : {news.get('impact_score',5)}/10\n"
-    message += f"📈 Sentiment : {news.get('sentiment','Neutral')}\n"
-    message += f"⚡ Urgency : {news.get('urgency','Low')}\n"
-    message += f"🎯 Confidence : {news.get('confidence',50)}%\n"
-    message += f"💹 Action : <b>{news.get('action','WATCH')}</b>\n"
-    message += f"🤖 Verdict : <b>{news.get('verdict','WATCH')}</b>\n"
+    message += (
+        f"🏢 <b>Company :</b> "
+        f"{news.get('company', 'N/A')}\n"
+    )
+
+    message += (
+        f"📈 <b>Symbol :</b> "
+        f"{news.get('symbol', 'N/A')}\n\n"
+    )
+
+    # --------------------------------------------------------
+    # NEWS TITLE
+    # --------------------------------------------------------
+
+    message += (
+        f"📰 <b>"
+        f"{news.get('title', '')}"
+        f"</b>\n\n"
+    )
+
+    message += (
+        "━━━━━━━━━━━━━━━━━━\n"
+    )
+
+    # --------------------------------------------------------
+    # CORE ANALYSIS
+    # --------------------------------------------------------
+
+    message += (
+        f"📂 Category : "
+        f"{news.get('category', 'General')}\n"
+    )
+
+    message += (
+        f"📊 Impact : "
+        f"{news.get('impact_score', 5)}/10\n"
+    )
+
+    message += (
+        f"📈 Sentiment : "
+        f"{news.get('sentiment', 'Neutral')}\n"
+    )
+
+    message += (
+        f"⚡ Urgency : "
+        f"{news.get('urgency', 'Low')}\n"
+    )
+
+    message += (
+        f"🎯 Confidence : "
+        f"{news.get('confidence', 50)}%\n"
+    )
+
+    message += (
+        f"💹 Action : "
+        f"<b>{news.get('action', 'WATCH')}</b>\n"
+    )
+
+    message += (
+        f"🤖 Verdict : "
+        f"<b>{news.get('verdict', 'WATCH')}</b>\n"
+    )
+
+    # --------------------------------------------------------
+    # RESULT SCORE
+    # --------------------------------------------------------
 
     if news.get("result_score") is not None:
 
         message += (
-            f"\n📑 Result Score : "
+            "\n📑 Result Score : "
             f"{news.get('result_score')}/10\n"
         )
 
-    if news.get("financial_metrics"):
+    # --------------------------------------------------------
+    # FINANCIAL METRICS
+    # --------------------------------------------------------
 
-        fm = news["financial_metrics"]
+    financial_metrics = news.get(
+        "financial_metrics"
+    )
+
+    if isinstance(
+        financial_metrics,
+        dict
+    ):
 
         message += (
             "\n📊 <b>Financial Metrics</b>\n"
-            f"💰 Revenue : {fm.get('revenue','N/A')}\n"
-            f"🏦 PAT : {fm.get('pat','N/A')}\n"
-            f"📈 EBITDA : {fm.get('ebitda','N/A')}\n"
-            f"🎯 EPS : {fm.get('eps','N/A')}\n"
         )
-
-    if news.get("result_quality"):
-
-        rq = news["result_quality"]
 
         message += (
-            f"\n⭐ <b>Quality Score :</b> "
-            f"{rq.get('score',0)}/10\n"
+            f"💰 Revenue : "
+            f"{financial_metrics.get('revenue', 'N/A')}\n"
         )
 
-        if rq.get("positive"):
+        message += (
+            f"🏦 PAT : "
+            f"{financial_metrics.get('pat', 'N/A')}\n"
+        )
 
-            message += "\n✅ <b>Positive Triggers</b>\n"
+        message += (
+            f"📈 EBITDA : "
+            f"{financial_metrics.get('ebitda', 'N/A')}\n"
+        )
 
-            for item in rq["positive"]:
-                message += f"• {item}\n"
+        message += (
+            f"🎯 EPS : "
+            f"{financial_metrics.get('eps', 'N/A')}\n"
+        )
 
-        if rq.get("negative"):
+    # --------------------------------------------------------
+    # RESULT QUALITY
+    # --------------------------------------------------------
 
-            message += "\n❌ <b>Negative Triggers</b>\n"
+    result_quality = news.get(
+        "result_quality"
+    )
 
-            for item in rq["negative"]:
-                message += f"• {item}\n"
+    if isinstance(
+        result_quality,
+        dict
+    ):
 
-    reasons = news.get("reasons", [])
+        message += (
+            "\n⭐ <b>Quality Score :</b> "
+            f"{result_quality.get('score', 0)}/10\n"
+        )
+
+        positive = result_quality.get(
+            "positive",
+            []
+        )
+
+        if positive:
+
+            message += (
+                "\n✅ <b>Positive Triggers</b>\n"
+            )
+
+            for item in positive[:5]:
+
+                message += (
+                    f"• {item}\n"
+                )
+
+        negative = result_quality.get(
+            "negative",
+            []
+        )
+
+        if negative:
+
+            message += (
+                "\n❌ <b>Negative Triggers</b>\n"
+            )
+
+            for item in negative[:5]:
+
+                message += (
+                    f"• {item}\n"
+                )
+
+    # --------------------------------------------------------
+    # REASONS
+    # --------------------------------------------------------
+
+    reasons = news.get(
+        "reasons",
+        []
+    )
 
     if reasons:
 
-        message += "\n📌 <b>Reasons</b>\n"
+        message += (
+            "\n📌 <b>Reasons</b>\n"
+        )
 
         for reason in reasons[:5]:
-            message += f"• {reason}\n"
 
-    if news.get("ai_analysis"):
+            message += (
+                f"• {reason}\n"
+            )
+
+    # --------------------------------------------------------
+    # AI ANALYSIS
+    # --------------------------------------------------------
+
+    ai_analysis = news.get(
+        "ai_analysis"
+    )
+
+    if ai_analysis:
 
         message += (
             "\n━━━━━━━━━━━━━━━━━━\n"
             "<b>🤖 AI Analysis</b>\n\n"
         )
 
-        message += news["ai_analysis"].strip()
+        message += str(
+            ai_analysis
+        ).strip()
+
+    # --------------------------------------------------------
+    # PUBLISHED TIME
+    # --------------------------------------------------------
 
     if news.get("published"):
 
         message += (
-            f"\n\n🕒 {news['published']}"
+            "\n\n🕒 "
+            f"{news.get('published')}"
         )
+
+    # --------------------------------------------------------
+    # SOURCE LINK
+    # --------------------------------------------------------
 
     if news.get("link"):
 
         message += (
-            f"\n🔗 {news['link']}"
+            "\n🔗 "
+            f"{news.get('link')}"
         )
 
     return message
@@ -2121,37 +2895,44 @@ def send_news(news):
 
         message = format_news_message(news)
 
-        success = send_telegram(message)
+        if not message:
+
+            log(
+                "[TELEGRAM] Empty message",
+                "WARNING"
+            )
+
+            return False
+
+        success = send_telegram(
+            message
+        )
 
         if success:
 
             log(
-
                 f"[TELEGRAM] Sent : "
-
-                f"{news.get('company','Unknown')}"
-
+                f"{news.get('company', 'Unknown')} | "
+                f"{news.get('symbol', 'N/A')}"
             )
 
-        else:
+            return True
 
-            log(
+        log(
+            "[TELEGRAM] Send Failed",
+            "ERROR"
+        )
 
-                "[TELEGRAM] Send Failed",
-
-                "ERROR"
-
-            )
+        return False
 
     except Exception as e:
 
         log(
-
             f"[TELEGRAM] {e}",
-
             "ERROR"
-
         )
+
+        return False
 
 
 def send_startup_message():
@@ -2168,7 +2949,9 @@ def send_startup_message():
 
     )
 
-    send_telegram(message)
+    return send_telegram(
+        message
+    )
 
 
 def send_health_message():
@@ -2177,20 +2960,26 @@ def send_health_message():
 
         "💚 <b>ALPHA NEWS HEALTH CHECK</b>\n\n"
 
-        f"Requests : {NETWORK_STATS['requests']}\n"
+        f"Requests : "
+        f"{NETWORK_STATS['requests']}\n"
 
-        f"Success : {NETWORK_STATS['success']}\n"
+        f"Success : "
+        f"{NETWORK_STATS['success']}\n"
 
-        f"Failed : {NETWORK_STATS['failed']}\n"
+        f"Failed : "
+        f"{NETWORK_STATS['failed']}\n"
 
-        f"Time : {current_time_string()}"
+        f"Time : "
+        f"{current_time_string()}"
 
     )
 
-    send_telegram(message)
+    return send_telegram(
+        message
+    )
     # ============================================================
 # BLOCK 7C
-# NEWS PROCESSING ENGINE
+# NEWS PROCESSING + F&O FILTER ENGINE
 # ============================================================
 
 MIN_IMPACT_SCORE = 7
@@ -2202,41 +2991,137 @@ def process_news(news_list):
 
         return
 
-    log(f"[ENGINE] Processing {len(news_list)} news")
+    log(
+        f"[ENGINE] Processing "
+        f"{len(news_list)} news"
+    )
+
+    # --------------------------------------------------------
+    # F&O SAFETY CHECK
+    # --------------------------------------------------------
+
+    if ENABLE_FNO and not FNO_READY:
+
+        log(
+            "[FNO] Universe not ready - "
+            "skipping news processing",
+            "ERROR"
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # PROCESS EACH NEWS
+    # --------------------------------------------------------
 
     for news in news_list:
 
         try:
 
-            # Complete Analysis
-            news = complete_analysis(news)
+            # ------------------------------------------------
+            # SYMBOL
+            # ------------------------------------------------
 
-            score = news.get("impact_score", 0)
+            symbol = normalize_fno_symbol(
+                news.get(
+                    "symbol",
+                    ""
+                )
+            )
 
-            # Ignore low impact news
+            # ------------------------------------------------
+            # F&O FILTER
+            # ------------------------------------------------
+
+            if ENABLE_FNO:
+
+                if not symbol:
+
+                    log(
+                        "[FNO] Skipped : "
+                        "No symbol"
+                    )
+
+                    continue
+
+                if not is_fno_stock(symbol):
+
+                    log(
+                        f"[FNO] Skipped : "
+                        f"{symbol} | "
+                        f"{news.get('company', 'Unknown')}"
+                    )
+
+                    continue
+
+                log(
+                    f"[FNO] Passed : "
+                    f"{symbol}"
+                )
+
+            # ------------------------------------------------
+            # COMPLETE ANALYSIS
+            # ------------------------------------------------
+
+            news = complete_analysis(
+                news
+            )
+
+            # ------------------------------------------------
+            # IMPACT SCORE
+            # ------------------------------------------------
+
+            score = news.get(
+                "impact_score",
+                0
+            )
+
+            # ------------------------------------------------
+            # LOW IMPACT FILTER
+            # ------------------------------------------------
+
             if score < MIN_IMPACT_SCORE:
 
                 log(
-                    f"[FILTER] Ignored ({score}/10) : "
-                    f"{news.get('title','')}"
+                    f"[FILTER] Ignored "
+                    f"({score}/10) : "
+                    f"{news.get('title', '')}"
                 )
 
                 continue
 
-            # Send Telegram
-            send_news(news)
+            # ------------------------------------------------
+            # TELEGRAM
+            # ------------------------------------------------
 
-            log(
-                f"[SENT] "
-                f"{news.get('company','Unknown')} | "
-                f"{score}/10 | "
-                f"{news.get('action','WATCH')}"
+            sent = send_news(
+                news
             )
+
+            if sent:
+
+                log(
+                    f"[SENT] "
+                    f"{news.get('company', 'Unknown')} | "
+                    f"{symbol} | "
+                    f"{score}/10 | "
+                    f"{news.get('action', 'WATCH')}"
+                )
+
+            else:
+
+                log(
+                    f"[SENT] Telegram failed : "
+                    f"{symbol}",
+                    "ERROR"
+                )
 
         except Exception as e:
 
             log(
-                f"[PROCESS] {e}",
+                f"[PROCESS] "
+                f"{news.get('symbol', 'N/A')} | "
+                f"{e}",
                 "ERROR"
             )
 
@@ -2252,7 +3137,8 @@ def main_loop():
     log("LIVE MONITORING STARTED")
     log("=" * 60)
 
-    startup_sync()
+    # Startup sync is already handled by startup()
+    # Do NOT run startup_sync() again here.
 
     while True:
 
@@ -2266,21 +3152,30 @@ def main_loop():
 
             else:
 
-                log("[ENGINE] No New Announcements")
+                log(
+                    "[ENGINE] No New Announcements"
+                )
 
         except KeyboardInterrupt:
 
-            log("[SYSTEM] Bot Stopped By User")
+            log(
+                "[SYSTEM] Bot Stopped By User"
+            )
 
             break
 
         except Exception as e:
 
-            log(f"[MAIN LOOP] {e}", "ERROR")
+            log(
+                f"[MAIN LOOP] {e}",
+                "ERROR"
+            )
 
             traceback.print_exc()
 
-        time.sleep(CHECK_INTERVAL)
+        time.sleep(
+            CHECK_INTERVAL
+        )
         # ============================================================
 # BLOCK 8B
 # STARTUP + RUN ENGINE
@@ -2292,13 +3187,68 @@ def startup():
     log("ALPHA NEWS 6 INITIALIZING...")
     log("=" * 60)
 
-    create_nse_session()
+    # --------------------------------------------------------
+    # NSE SESSION
+    # --------------------------------------------------------
+
+    nse_ready = create_nse_session()
+
+    if nse_ready:
+
+        log(
+            "[NSE] Session Ready"
+        )
+
+    else:
+
+        log(
+            "[NSE] Session Initialization Failed",
+            "ERROR"
+        )
+
+    # --------------------------------------------------------
+    # F&O UNIVERSE
+    # --------------------------------------------------------
+
+    if ENABLE_FNO:
+
+        fno_loaded = load_fno_stocks()
+
+        if fno_loaded:
+
+            log(
+                f"[FNO] Filter Active : "
+                f"{FNO_COUNT} stocks"
+            )
+
+        else:
+
+            log(
+                "[FNO] Filter NOT READY",
+                "ERROR"
+            )
+
+    else:
+
+        log(
+            "[FNO] Feature Disabled"
+        )
+
+    # --------------------------------------------------------
+    # TELEGRAM STARTUP
+    # --------------------------------------------------------
 
     send_startup_message()
 
+    # --------------------------------------------------------
+    # STARTUP SYNC
+    # --------------------------------------------------------
+
     startup_sync()
 
-    log("[SYSTEM] Startup Complete")
+    log(
+        "[SYSTEM] Startup Complete"
+    )
 
 
 def main():
@@ -2308,131 +3258,9 @@ def main():
     main_loop()
 
 
-
-        
 # ============================================================
-# BLOCK 7A
-# RESULT METRICS EXTRACTOR
+# PROGRAM ENTRY POINT
 # ============================================================
-
-RESULT_PATTERNS = {
-
-    "revenue": [
-        r"Revenue\s+from\s+Operations[:\s₹]*([\d,\.]+)",
-        r"Total\s+Income[:\s₹]*([\d,\.]+)"
-    ],
-
-    "pat": [
-        r"Net\s+Profit[:\s₹]*([\d,\.\-\(\)]+)",
-        r"Profit\s+After\s+Tax[:\s₹]*([\d,\.\-\(\)]+)",
-        r"PAT[:\s₹]*([\d,\.\-\(\)]+)"
-    ],
-
-    "ebitda": [
-        r"EBITDA[:\s₹]*([\d,\.\-\(\)]+)"
-    ],
-
-    "eps": [
-        r"EPS[:\s₹]*([\d,\.\-]+)",
-        r"Earnings\s+Per\s+Share[:\s₹]*([\d,\.\-]+)"
-    ]
-}
-
-
-def extract_financial_metrics(pdf_text):
-
-    result = {
-        "revenue": "N/A",
-        "pat": "N/A",
-        "ebitda": "N/A",
-        "eps": "N/A"
-    }
-
-    if not pdf_text:
-        return result
-
-    for key, patterns in RESULT_PATTERNS.items():
-
-        for pattern in patterns:
-
-            match = re.search(
-                pattern,
-                pdf_text,
-                flags=re.I
-            )
-
-            if match:
-                result[key] = match.group(1).strip()
-                break
-
-    return result
-    # ============================================================
-# BLOCK 7C
-# RESULT QUALITY ANALYZER
-# ============================================================
-
-POSITIVE_RESULT_WORDS = [
-
-    "record revenue",
-    "record profit",
-    "highest ever",
-    "margin expansion",
-    "strong growth",
-    "order book",
-    "guidance raised",
-    "debt reduced",
-    "cash increased",
-    "capacity expansion",
-    "robust demand",
-    "improved margin",
-    "strong cash flow"
-
-]
-
-NEGATIVE_RESULT_WORDS = [
-
-    "loss",
-    "net loss",
-    "margin pressure",
-    "guidance cut",
-    "weak demand",
-    "decline",
-    "lower revenue",
-    "profit declined",
-    "debt increased",
-    "impairment",
-    "shutdown",
-    "exceptional loss",
-    "cash burn"
-
-]
-
-
-def analyze_result_quality(pdf_text):
-
-    report = {
-        "positive": [],
-        "negative": [],
-        "score": 0
-    }
-
-    if not pdf_text:
-        return report
-
-    text = pdf_text.lower()
-
-    for word in POSITIVE_RESULT_WORDS:
-        if word in text:
-            report["positive"].append(word)
-            report["score"] += 1
-
-    for word in NEGATIVE_RESULT_WORDS:
-        if word in text:
-            report["negative"].append(word)
-            report["score"] -= 1
-
-    return report
-
 
 if __name__ == "__main__":
 
@@ -2442,11 +3270,20 @@ if __name__ == "__main__":
     ).start()
 
     try:
+
         main()
 
     except KeyboardInterrupt:
-        log("[SYSTEM] Stopped By User")
+
+        log(
+            "[SYSTEM] Stopped By User"
+        )
 
     except Exception as e:
-        log(f"[FATAL] {e}", "ERROR")
+
+        log(
+            f"[FATAL] {e}",
+            "ERROR"
+        )
+
         traceback.print_exc()
