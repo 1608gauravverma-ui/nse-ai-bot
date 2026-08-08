@@ -2458,7 +2458,7 @@ def analyze_result_quality(pdf_text):
     )
 
     return report
-    # ============================================================
+ # ============================================================
 # BLOCK 6D
 # NSE F&O UNIVERSE ENGINE
 # ============================================================
@@ -2472,6 +2472,10 @@ FNO_LAST_REFRESH = None
 FNO_COUNT = 0
 
 
+# ------------------------------------------------------------
+# NSE F&O API
+# ------------------------------------------------------------
+
 FNO_URL = (
     NSE_HOME
     + "/api/equity-stockIndices"
@@ -2479,14 +2483,246 @@ FNO_URL = (
 )
 
 
+# ------------------------------------------------------------
+# FALLBACK F&O UNIVERSE
+# ------------------------------------------------------------
+# Used only when NSE F&O API returns empty/blocked response.
+# This prevents the complete news engine from stopping.
+
+FNO_FALLBACK_STOCKS = {
+
+    "360ONE",
+    "ABB",
+    "ABCAPITAL",
+    "ABFRL",
+    "ACC",
+    "ADANIENT",
+    "ADANIPORTS",
+    "ALKEM",
+    "AMBER",
+    "AMBUJACEM",
+    "ANGELONE",
+    "APLAPOLLO",
+    "APOLLOHOSP",
+    "APOLLOTYRE",
+    "ASHOKLEY",
+    "ASIANPAINT",
+    "ASTRAL",
+    "ATGL",
+    "AUBANK",
+    "AUROPHARMA",
+    "AXISBANK",
+
+    "BAJAJ-AUTO",
+    "BAJAJFINSV",
+    "BAJFINANCE",
+    "BALKRISIND",
+    "BANDHANBNK",
+    "BANKBARODA",
+    "BANKINDIA",
+    "BEL",
+    "BHARATFORG",
+    "BHARTIARTL",
+    "BHEL",
+    "BIOCON",
+    "BLUESTARCO",
+    "BOSCHLTD",
+    "BPCL",
+    "BRITANNIA",
+
+    "CANBK",
+    "CESC",
+    "CGPOWER",
+    "CHAMBLFERT",
+    "CHOLAFIN",
+    "CIPLA",
+    "COALINDIA",
+    "COFORGE",
+    "COLPAL",
+    "CONCOR",
+    "CROMPTON",
+    "CUMMINSIND",
+
+    "DABUR",
+    "DALBHARAT",
+    "DEEPAKNTR",
+    "DELHIVERY",
+    "DIVISLAB",
+    "DIXON",
+    "DLF",
+    "DRREDDY",
+
+    "EICHERMOT",
+    "ETERNAL",
+    "EXIDEIND",
+
+    "FEDERALBNK",
+    "FORTIS",
+    "GAIL",
+    "GLENMARK",
+    "GODREJCP",
+    "GODREJPROP",
+    "GRANULES",
+    "GRASIM",
+    "HAL",
+    "HAVELLS",
+    "HCLTECH",
+    "HDFCAMC",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HEROMOTOCO",
+    "HINDALCO",
+    "HINDCOPPER",
+    "HINDPETRO",
+    "HINDUNILVR",
+    "HINDZINC",
+    "HUDCO",
+    "ICICIBANK",
+    "ICICIGI",
+    "ICICIPRULI",
+    "IDEA",
+    "IDFCFIRSTB",
+    "IEX",
+    "INDHOTEL",
+    "INDIACEM",
+    "INDIAMART",
+    "INDIGO",
+    "INDUSINDBK",
+    "INDUSTOWER",
+    "INFY",
+    "INOXWIND",
+    "IOC",
+    "IRB",
+    "IRCTC",
+    "IREDA",
+    "IRFC",
+    "ITC",
+    "JINDALSTEL",
+    "JIOFIN",
+    "JSWENERGY",
+    "JSWSTEEL",
+    "JUBLFOOD",
+
+    "KALYANKJIL",
+    "KEI",
+    "KOTAKBANK",
+    "KPITTECH",
+
+    "LAURUSLABS",
+    "LICHSGFIN",
+    "LICI",
+    "LODHA",
+    "LT",
+    "LTF",
+    "LTIM",
+    "LTTS",
+    "LUPIN",
+
+    "M&M",
+    "M&MFIN",
+    "MANAPPURAM",
+    "MARICO",
+    "MARUTI",
+    "MAXHEALTH",
+    "MCX",
+    "METROPOLIS",
+    "MFSL",
+    "MGL",
+    "MOTHERSON",
+    "MPHASIS",
+    "MRF",
+    "MUTHOOTFIN",
+
+    "NATIONALUM",
+    "NAUKRI",
+    "NBCC",
+    "NCC",
+    "NESTLEIND",
+    "NHPC",
+    "NMDC",
+    "NTPC",
+
+    "OBEROIRLTY",
+    "OFSS",
+    "OIL",
+    "ONGC",
+    "PAGEIND",
+    "PATANJALI",
+    "PAYTM",
+    "PERSISTENT",
+    "PETRONET",
+    "PFC",
+    "PFIZER",
+    "PHOENIXLTD",
+    "PIDILITIND",
+    "PIIND",
+    "PNB",
+    "POLYCAB",
+    "POWERGRID",
+    "POWERINDIA",
+    "PRESTIGE",
+    "PVRINOX",
+
+    "RAMCOCEM",
+    "RBLBANK",
+    "RECLTD",
+    "RELIANCE",
+    "RVNL",
+
+    "SAIL",
+    "SBICARD",
+    "SBILIFE",
+    "SBIN",
+    "SHREECEM",
+    "SHRIRAMFIN",
+    "SIEMENS",
+    "SOLARINDS",
+    "SONACOMS",
+    "SRF",
+    "SUNPHARMA",
+    "SUPREMEIND",
+    "SUZLON",
+
+    "TATACHEM",
+    "TATACONSUM",
+    "TATAELXSI",
+    "TATAMOTORS",
+    "TATAPOWER",
+    "TATASTEEL",
+    "TCS",
+    "TECHM",
+    "TIINDIA",
+    "TITAN",
+    "TORNTPHARM",
+    "TRENT",
+    "TVSMOTOR",
+
+    "UCOBANK",
+    "ULTRACEMCO",
+    "UNIONBANK",
+    "UNITEDSPIRITS",
+    "UPL",
+
+    "VEDL",
+    "VOLTAS",
+    "WIPRO",
+    "YESBANK",
+    "ZYDUSLIFE"
+}
+
+
+# ------------------------------------------------------------
+# SYMBOL NORMALIZER
+# ------------------------------------------------------------
+
 def normalize_fno_symbol(symbol):
 
     if not symbol:
         return ""
 
-    symbol = str(symbol).strip().upper()
-
-    # Remove common NSE suffixes if present
+    symbol = str(
+        symbol
+    ).strip().upper()
 
     for suffix in (
         "-EQ",
@@ -2496,10 +2732,16 @@ def normalize_fno_symbol(symbol):
 
         if symbol.endswith(suffix):
 
-            symbol = symbol[:-len(suffix)]
+            symbol = symbol[
+                :-len(suffix)
+            ]
 
     return symbol.strip()
 
+
+# ------------------------------------------------------------
+# LOAD F&O UNIVERSE
+# ------------------------------------------------------------
 
 def load_fno_stocks():
 
@@ -2514,66 +2756,118 @@ def load_fno_stocks():
 
     FNO_COUNT = 0
 
-    log("[FNO] Loading NSE F&O universe...")
+    log(
+        "[FNO] Loading NSE F&O universe..."
+    )
+
+    # --------------------------------------------------------
+    # FIRST TRY NSE LIVE API
+    # --------------------------------------------------------
 
     try:
 
-        data = download_json(FNO_URL)
+        data = download_json(
+            FNO_URL
+        )
 
-        if not data:
+        if data:
+
+            records = data.get(
+                "data",
+                []
+            )
+
+            stocks = set()
+
+            for item in records:
+
+                if not isinstance(
+                    item,
+                    dict
+                ):
+                    continue
+
+                symbol = normalize_fno_symbol(
+                    item.get(
+                        "symbol",
+                        ""
+                    )
+                )
+
+                if symbol:
+
+                    stocks.add(
+                        symbol
+                    )
+
+            if stocks:
+
+                FNO_STOCKS = stocks
+
+                FNO_COUNT = len(
+                    FNO_STOCKS
+                )
+
+                FNO_LAST_REFRESH = current_time()
+
+                FNO_READY = True
+
+                log(
+                    f"[FNO] NSE Loaded "
+                    f"{FNO_COUNT} securities"
+                )
+
+                return True
+
+        log(
+            "[FNO] NSE live list unavailable - using fallback",
+            "WARNING"
+        )
+
+    except Exception as e:
+
+        log(
+            f"[FNO] NSE Load Error : {e}",
+            "WARNING"
+        )
+
+
+    # --------------------------------------------------------
+    # FALLBACK
+    # --------------------------------------------------------
+
+    try:
+
+        FNO_STOCKS = {
+            normalize_fno_symbol(
+                symbol
+            )
+            for symbol in FNO_FALLBACK_STOCKS
+            if symbol
+        }
+
+        FNO_COUNT = len(
+            FNO_STOCKS
+        )
+
+        if FNO_COUNT == 0:
 
             log(
-                "[FNO] NSE returned empty response",
+                "[FNO] Fallback universe empty",
                 "ERROR"
             )
 
-            return False
-
-        records = data.get("data", [])
-
-        if not records:
-
-            log(
-                "[FNO] No F&O securities received",
-                "ERROR"
-            )
+            FNO_READY = False
 
             return False
-
-        stocks = set()
-
-        for item in records:
-
-            if not isinstance(item, dict):
-                continue
-
-            symbol = normalize_fno_symbol(
-                item.get("symbol", "")
-            )
-
-            if symbol:
-
-                stocks.add(symbol)
-
-        if not stocks:
-
-            log(
-                "[FNO] F&O symbol extraction failed",
-                "ERROR"
-            )
-
-            return False
-
-        FNO_STOCKS = stocks
-
-        FNO_COUNT = len(FNO_STOCKS)
 
         FNO_LAST_REFRESH = current_time()
 
         FNO_READY = True
 
         log(
-            f"[FNO] Loaded {FNO_COUNT} securities"
+            f"[FNO] Fallback Loaded "
+            f"{FNO_COUNT} securities"
         )
 
         return True
@@ -2587,16 +2881,22 @@ def load_fno_stocks():
         FNO_COUNT = 0
 
         log(
-            f"[FNO] Load Error : {e}",
+            f"[FNO] Fallback Error : {e}",
             "ERROR"
         )
 
         return False
 
 
+# ------------------------------------------------------------
+# F&O STOCK CHECK
+# ------------------------------------------------------------
+
 def is_fno_stock(symbol):
 
-    normalized = normalize_fno_symbol(symbol)
+    normalized = normalize_fno_symbol(
+        symbol
+    )
 
     if not normalized:
 
@@ -2609,30 +2909,46 @@ def is_fno_stock(symbol):
     return normalized in FNO_STOCKS
 
 
+# ------------------------------------------------------------
+# REFRESH
+# ------------------------------------------------------------
+
 def refresh_fno_stocks():
 
     if not ENABLE_FNO:
 
-        log("[FNO] Feature Disabled")
+        log(
+            "[FNO] Feature Disabled"
+        )
 
         return False
 
-    log("[FNO] Refreshing F&O universe...")
+    log(
+        "[FNO] Refreshing F&O universe..."
+    )
 
     return load_fno_stocks()
 
+
+# ------------------------------------------------------------
+# STATUS
+# ------------------------------------------------------------
 
 def get_fno_status():
 
     return {
 
-        "enabled": ENABLE_FNO,
+        "enabled":
+        ENABLE_FNO,
 
-        "ready": FNO_READY,
+        "ready":
+        FNO_READY,
 
-        "count": FNO_COUNT,
+        "count":
+        FNO_COUNT,
 
-        "last_refresh": (
+        "last_refresh":
+        (
             FNO_LAST_REFRESH
             if FNO_LAST_REFRESH
             else "N/A"
